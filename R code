@@ -1,0 +1,304 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+```{r}
+library(metafor)
+library(compute.es)
+library(MAc)
+library(MAd)
+library(meta)
+library(esc)
+library(grid)
+library(gridExtra)
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(forestplot)
+library(weightr)
+library(RoBMA)
+```
+
+Of all the studies included in the review, only five provided the data necessary to compute a meta-analysis, that is pre-post mean and standard-deviation in the debriefing and control groups.
+
+The following function computes the estimated value of the Cohen's d for a Pretest-Posttest-Control design (dppc2)  and variance.
+```{r}
+compute.dppc2<-function(data, r.pre.post=c(.5,.7,.9)){
+  # Compute the pooled standard deviation
+  sd.pooled <- with(data,
+                sqrt(((T.n-1)*T.sd_pre^2 + (C.n-1)*C.sd_pre^2) / (T.n + C.n - 2)))
+  # Compute the estimated value of dppc2
+  yi <- with(data, metafor:::.cmicalc(T.n+C.n-2)*(
+                (T.m_post- T.m_pre) - (C.m_post-C.m_pre))/sd.pooled)
+  # Compute the estimated variance of dppc2
+  vi <- with(data,
+                2*(1-r.pre.post) * (1/T.n + 1/C.n) + yi^2 / (2*(T.n + C.n)))
+  
+  return(data.frame(r.pre.post,sd.pooled,yi,vi)) 
+}
+```
+
+
+
+Thabet et al. compared a treatment group with an inactive control group.
+```{r}
+Thabet_data<-data.frame(
+  #Treatment group
+  T.n= 47, T.m_pre= 29.5, T.sd_pre= 11.9, T.m_post= 28.3, T.sd_post= 13.4,
+  
+  #Control group
+  C.n= 22, C.m_pre= 33, C.sd_pre= 7.9, C.m_post= 32.2, C.sd_post= 8.7
+)
+```
+
+
+
+The dppc2 and variance are estimated
+```{r}
+Thabet.dppc2<-compute.dppc2(Thabet_data)
+```
+
+
+
+All the results are reported in the dataset d with the main characteristics of the study.
+```{r}
+d<-data.frame(
+  
+  #Study characteristics
+  id=1,
+  Author="Thabet et al.",
+  Year=2005,
+  
+  #dppc2
+  dppc2.yi=Thabet.dppc2$yi,
+  dppc2.vi=Thabet.dppc2$vi,
+  r.pre.post=Thabet.dppc2$r.pre.post,
+  r.scales=1,
+  scales=1,
+  control_grps=1
+)
+```
+
+
+
+Adler et al., compared a treatment group with an inactive control group.
+```{r}
+Adler_data<-data.frame(
+  #Treatment group
+  T.n= 75, T.m_pre= 22.68, T.sd_pre= 10.1, T.m_post= 19.05, T.sd_post= 12.9,
+  
+  #Control group
+  C.n= 122, C.m_pre= 22.72, C.sd_pre= 9.55, C.m_post= 19.18, C.sd_post= 9.39
+)
+```
+
+
+
+The dppc2 and variance are estimated
+```{r}
+Adler.dppc2<-compute.dppc2(Adler_data)
+```
+
+
+
+All the results are reported in the dataset d with the main characteristics of the study.
+```{r}
+d<-rbind(d,data.frame(
+  
+  #Study characteristics
+  id=2,
+  Author="Adler et al.",
+  Year=2008,
+  
+  #dppc2
+  dppc2.yi=Adler.dppc2$yi,
+  dppc2.vi=Adler.dppc2$vi,
+  r.pre.post=Adler.dppc2$r.pre.post,
+  r.scales=1,
+  scales=1,
+  control_grps=1
+))
+```
+
+
+
+Tuckey et al. compared a treatment group with an inactive control group.
+```{r}
+Tuckey_data<-data.frame(
+  #Treatment group
+  T.n= 20, T.m_pre= 1.22, T.sd_pre= 2.17, T.m_post= 0.58, T.sd_post= 0.7,
+  
+  #Control group
+  C.n= 28, C.m_pre= 0.75, C.sd_pre= 0.93, C.m_post= 0.69, C.sd_post= 1.27
+)
+```
+
+
+
+The dppc2 and variance are estimated
+```{r}
+Tuckey.dppc2<-compute.dppc2(Tuckey_data)
+```
+
+
+
+All the results are reported in the dataset d with the main characteristics of the study.
+```{r}
+d<-rbind(d,data.frame(
+  
+  #Study characteristics
+  id=3,
+  Author="Tuckey et al.",
+  Year=2008,
+  
+  #dppc2
+  dppc2.yi=Tuckey.dppc2$yi,
+  dppc2.vi=Tuckey.dppc2$vi,
+  r.pre.post=Tuckey.dppc2$r.pre.post,
+  r.scales=1,
+  scales=1,
+  control_grps=1
+))
+```
+
+
+
+Wu et al., included 3 groups: 'debriefing', '512 PIM' and 'no intervention'. 512 PIM is a new psychological intervention developed based on the standard debriefing and unique characteristics of Chineses military rescuers. In this meta-analysis we only compared the debriefing group with the non intervention one. Groups are evaluated with only one scale.
+```{r}
+Wu_data<-data.frame(
+  
+  #treatment group
+  T.n= 372, T.m_pre= 34.8, T.sd_pre= 11.4, T.m_post= 16.8, T.sd_post= 10.2,
+  
+  #passive control group
+  C.n= 391, C.m_pre= 35.4, C.sd_pre= 11.2, C.m_post= 17.7, C.sd_post= 9.3
+)
+```
+
+
+The dppc2 and variance are estimated
+```{r}
+Wu.dppc2<-compute.dppc2(Wu_data)
+```
+
+
+
+All the results are reported in the dataset d with the main characteristics of the study.
+```{r}
+d<-rbind(d,data.frame(
+  
+#Study Characteristics
+id = 4,
+Author="Wu et al.",
+Year=2012,
+
+# dppc2
+dppc2.yi = Wu.dppc2$yi,
+dppc2.vi = Wu.dppc2$vi, 
+r.pre.post=Wu.dppc2$r.pre.post,
+r.scales = 1,
+scales=1,
+control_grps=1
+))
+```
+
+
+
+Tarquinio et al., included 3 different groups: 'CISD', 'EMDR-RE' and 'delayed EMDR-RE'. CISD and EMDR-RE took place 48hrs after the event whilst the third intervention group was delayed by an additional 48 hrs. We considered CISD as treatment group and EMDR-RE as control group.
+Groups are evaluated with 2 different scales.
+```{r}
+Tarquinio_data<-data.frame(
+  Scale= c(as.character(1:2)),
+  
+  #CISD treatment group
+  T.n= 23, T.m_pre= c(51.6, 8.5), T.sd_pre= c(4.1, 0.7), T.m_post= c(52.7, 8.1), T.sd_post= c(5.1, 0.79),
+  
+  #EMDR-RE active control group
+  C.n= 18, C.m_pre= c(50.1,8.6), C.sd_pre= c(4.2,0.6), C.m_post= c(31.5,2.4), C.sd_post= c(4.1,0.69)
+)
+```
+
+
+
+In order to take into account the dependence of the measures, first we compute an effect size and variance for each different scale.
+```{r}
+Tarquinio.dppc2<-cbind(r.pre.post=c(.5,.7,.9),
+                 scale1=compute.dppc2(Tarquinio_data[1,])[,-1],
+                 scale2=compute.dppc2(Tarquinio_data[2,])[,-1]
+                 )
+```
+
+
+
+Composite dppc2 and variance are computed to obtain the summary effect for the whole study. The correlation between the two scales was set at .3, .5 and .7.
+```{r}
+r.scales <- c(.3,.5,.7); r.pre.post<-c(.5,.7,.9)
+
+composite<-data.frame(r.scales=numeric(),r.pre.post=numeric(),
+yi=numeric(),vi=numeric())
+for(i in 1:3){
+  
+# compute the composite estimate
+yi=with(Tarquinio.dppc2,1/2*(scale1.yi+scale2.yi))
+
+  # compute the composite variance
+vi=with(Tarquinio.dppc2, 1/4*(scale1.vi+scale2.vi+2*r.scales[i]*
+(sqrt(scale1.vi*scale2.vi))))
+
+composite=rbind(composite,data.frame(
+  r.scales=r.scales[i],r.pre.post,yi,vi))
+}
+```
+
+
+
+All the results are reported in the dataset d with the main characteristics of the study.
+```{r}
+d<-rbind(d,data.frame(
+  
+#Study Characteristics
+id = 5,
+Author="Tarquinio et al.",
+Year=2016,
+
+# dppc2
+dppc2.yi = composite$yi,
+dppc2.vi = composite$vi, 
+r.pre.post=composite$r.pre.post,
+r.scales = composite$r.scales,
+scales=2,
+control_grps=2
+))
+```
+
+
+
+Random-effect frequentist meta-analysis. We selected the effect sizes estimates with r.pre.post=0.7 and r.scales=0.5 (r.scales=1 is used to define studies that do not have multiple dependent scales). Here, the difference of symptoms between group debriefing and controls is non significant. The Cochran's Q test show a significant heterogeneity between studies. The I2 value show demonstrates a high heterogeneity. 
+```{r}
+d.sel<-d[d$r.pre.post==.7 & (d$r.scales==1| d$r.scales==.5),]
+rma.dppc2<-rma(dppc2.yi, dppc2.vi, data=d.sel, method="REML")
+summary(rma.dppc2)
+```
+
+
+
+Frequentist forest plot. Left: symptoms reduction in the debriefing group. Right: symptoms reduction in the control group. The high heterogeneity seems explained by the high effect size computed from the study by Tarquinio et al. which is the only study comparing debriefing with an active control group. 
+```{r}
+forest.rma(rma.dppc2,
+       slab=paste(d.sel$Author, d.sel$Year, sep=", "),
+       header="Author(s) and Year"
+       )
+```
+
+
+Diagnostics. Eyeballing the funnel plot suggest that the distribution of effects is fairly asymmetrical. Egger's regression test is significant.
+```{r}
+funnel.rma(rma.dppc2)
+regtest(rma.dppc2)
+```
+
